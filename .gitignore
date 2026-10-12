@@ -1,0 +1,5 @@
+# Built locally by src/run_sql.py
+data/nhs_ae.db
+__pycache__/
+.ipynb_checkpoints/
+~$*.xlsx

@@ -1,0 +1,122 @@
+// =====================================================================
+// DAX measures for the NHS A&E Performance dashboard
+// Create a blank table called _Measures (Home > Enter data > OK) and add
+// each measure below to it (Home > New measure), one at a time.
+// =====================================================================
+
+// ---------- Volumes ----------
+
+Total Attendances =
+SUM ( fact_activity[att_total] )
+
+Type 1 Attendances =
+SUM ( fact_activity[att_type1] )
+
+Emergency Admissions =
+SUM ( fact_activity[adm_total] )
+
+Admitted via Type 1 =
+SUM ( fact_activity[adm_via_type1] )
+
+12h Waits for a Bed =
+SUM ( fact_activity[dta_over_12hrs] )
+
+
+// ---------- 4-hour performance ----------
+// A percentage must be calculated from the totals (sum of patients within 4h
+// divided by sum of all patients), never by averaging monthly percentages.
+
+Within 4h =
+SUM ( fact_performance[within4_total] )
+
+Over 4h =
+SUM ( fact_performance[over4_total] )
+
+% Within 4h =
+DIVIDE ( [Within 4h], [Within 4h] + [Over 4h] )
+
+% Within 4h Type 1 =
+VAR Within1 = SUM ( fact_performance[within4_type1] )
+VAR Over1   = SUM ( fact_performance[over4_type1] )
+RETURN
+    DIVIDE ( Within1, Within1 + Over1 )
+
+4h Standard =
+0.95
+
+Type 1 Gap to Standard (pts) =
+( [% Within 4h Type 1] - [4h Standard] ) * 100
+
+Type 1 Admission Rate =
+DIVIDE ( [Admitted via Type 1], [Type 1 Attendances] )
+
+
+// ---------- Comparisons ----------
+// month_key is YYYYMM, so the same month last year is month_key - 100.
+// These measures are designed for a single selected month (cards, tables
+// by month). Over several months they compare with the latest month shown.
+
+Latest Month Key =
+MAX ( dim_month[month_key] )
+
+Latest Month =
+VAR k = [Latest Month Key]
+RETURN
+    CALCULATE ( MAX ( dim_month[month_label] ), dim_month[month_key] = k )
+
+Attendances Same Month LY =
+VAR k = [Latest Month Key]
+RETURN
+    CALCULATE ( [Total Attendances], REMOVEFILTERS ( dim_month ), dim_month[month_key] = k - 100 )
+
+Attendances Latest Month =
+VAR k = [Latest Month Key]
+RETURN
+    CALCULATE ( [Total Attendances], REMOVEFILTERS ( dim_month ), dim_month[month_key] = k )
+
+Attendances vs LY % =
+DIVIDE ( [Attendances Latest Month] - [Attendances Same Month LY], [Attendances Same Month LY] )
+
+% Within 4h Type 1 Latest Month =
+VAR k = [Latest Month Key]
+RETURN
+    CALCULATE ( [% Within 4h Type 1], REMOVEFILTERS ( dim_month ), dim_month[month_key] = k )
+
+% Within 4h Type 1 Same Month LY =
+VAR k = [Latest Month Key]
+RETURN
+    CALCULATE ( [% Within 4h Type 1], REMOVEFILTERS ( dim_month ), dim_month[month_key] = k - 100 )
+
+Type 1 Change vs LY (pts) =
+( [% Within 4h Type 1 Latest Month] - [% Within 4h Type 1 Same Month LY] ) * 100
+
+12h Waits Latest Month =
+VAR k = [Latest Month Key]
+RETURN
+    CALCULATE ( [12h Waits for a Bed], REMOVEFILTERS ( dim_month ), dim_month[month_key] = k )
+
+
+// ---------- Trend ----------
+
+% Within 4h Type 1 (12-month rolling) =
+VAR EndDate = MAX ( dim_month[month_start] )
+RETURN
+    CALCULATE (
+        [% Within 4h Type 1],
+        REMOVEFILTERS ( dim_month ),
+        dim_month[month_start] > EDATE ( EndDate, -12 ),
+        dim_month[month_start] <= EndDate
+    )
+
+
+// ---------- Data quality ----------
+
+Months with CRS Caveat =
+SUM ( dim_month[flag_crs_field_test] )
+
+Data Caveat Note =
+IF (
+    [Months with CRS Caveat] > 0,
+    "Includes months when 14 trusts were missing from 4-hour data (May 2019 to May 2023).",
+    ""
+)
