@@ -1,0 +1,8 @@
+check_name,result
+Months in activity table,194
+Months with activity but no 4-hour data,3
+Months where type totals do not match overall total (>5 patients),0
+Months where 4-hour counts do not equal total attendances (>5 patients),49
+Months estimated from weekly data,55
+Months affected by CRS field test,49
+Months affected by Type 3 cyber-attack gap,7
